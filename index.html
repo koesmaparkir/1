@@ -784,6 +784,34 @@
                 const json = await res.json();
                 Swal.close();
                 
+                // ==========================================
+                // TAMBAHAN: PENANGANAN STATUS MAINTENANCE (FORM CLOSED)
+                // ==========================================
+                if (json.status === 'maintenance') {
+                    localStorage.clear(); // Hapus session lokal
+                    
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sistem Sedang Ditutup',
+                        html: `<div style="line-height:1.6; color:#555; font-size: 1.05em;">
+                                  <p>Mohon maaf, aplikasi <b>SIPARKIR KOESMA</b> saat ini sedang dalam pemeliharaan (Maintenance) atau akses pendaftaran sedang ditutup sementara oleh Admin.</p>
+                                  <p>Hanya Administrator yang diizinkan masuk ke sistem saat ini.</p>
+                                  <p style="margin-top:20px; font-weight:bold; color:var(--primary-color);">Terima kasih atas pengertian Anda.</p>
+                               </div>`,
+                        confirmButtonText: 'Tutup',
+                        confirmButtonColor: '#005A9C',
+                        backdrop: `rgba(15, 23, 42, 0.8)` // Background gelap profesional
+                    }).then(() => {
+                        // Tampilkan kembali halaman login
+                        const loginPage = document.getElementById('login-page');
+                        loginPage.classList.remove('hidden');
+                        loginPage.style.opacity = '1';
+                        // Jalankan kembali animasi jika sempat dihentikan
+                        if(!window.meshAnimationId) animate();
+                    });
+                    return;
+                }
+                
                 if (json.status === 'blocked') {
                     localStorage.clear();
                     Swal.fire('Ditolak', 'Akun diblokir.', 'error').then(() => location.reload());
@@ -1535,7 +1563,8 @@
             }
         }
 
-        function animate() {
+        // Terekspos ke window agar bisa dipanggil ulang dari modal maintenance
+        window.animate = function() {
             const loginPage = document.getElementById('login-page');
             // Cek jika login page ada dan tidak hidden. Jika hidden (user login), stop animasi.
             if(loginPage && loginPage.classList.contains('hidden')) {
@@ -1562,11 +1591,6 @@
                 // Hanya gambar garis jika titik ini sedang aktif/terang
                 if(d1.alpha < 0.3) continue;
 
-                // Optimization: Cek tetangga kanan dan bawah saja dalam grid 
-                // untuk menghindari perhitungan n*n
-                // Tapi array dots kita urut linear, jadi agak susah cari tetangga grid exact tanpa 2D array.
-                // Fallback ke distance check untuk tetangga terdekat (simple & robust untuk resolusi layar beda2)
-                
                 for(let j=i+1; j<dots.length; j++) {
                     let d2 = dots[j];
                     
@@ -1589,11 +1613,11 @@
                     }
                 }
             }
-            window.meshAnimationId = requestAnimationFrame(animate);
+            window.meshAnimationId = requestAnimationFrame(window.animate);
         }
 
         resize();
-        animate();
+        window.animate();
     })();
     </script>
 </body>

@@ -410,8 +410,9 @@
                     <span id="admin-role-badge" class="role-badge role-admin">ADMIN</span>
                 </div>
                 <div class="action-buttons">
-                    <button id="btn-toggle-status" class="btn-small btn-status-on" onclick="toggleFormStatus()">
-                        <i class="fas fa-toggle-on"></i> Formulir: Loading...
+                    <!-- Tombol Pengaturan Baru -->
+                    <button class="btn-small btn-edit-profile" style="background: var(--primary-color); color: white;" onclick="openSettingsModal()">
+                        <i class="fas fa-cog"></i> Pengaturan
                     </button>
                     <!-- TAMBAHAN: Tombol Edit Profil untuk Admin -->
                     <button class="btn-small btn-edit-profile" onclick="openProfileModal(true)">
@@ -640,6 +641,37 @@
         </div>
     </div>
 
+    <!-- MODAL PENGATURAN SISTEM (ADMIN SAJA) -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cogs"></i> Pengaturan Sistem</h3>
+                <button class="btn-close" onclick="document.getElementById('settings-modal').style.display='none'">&times;</button>
+            </div>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label>Akses Formulir Pengajuan Pendaftaran</label>
+                    <select id="set-form-status" required>
+                        <option value="ON">BUKA (Menerima Pengajuan)</option>
+                        <option value="OFF">TUTUP (Maintenance / Pendaftaran Ditutup)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Popup Informasi saat User Login</label>
+                    <select id="set-popup-status" required>
+                        <option value="ON">AKTIF (Tampilkan Pesan Popup)</option>
+                        <option value="OFF">NONAKTIF (Sembunyikan)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pesan Popup Informasi</label>
+                    <textarea id="set-popup-message" rows="4" placeholder="Ketik pesan informasi di sini..."></textarea>
+                </div>
+                <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Simpan Pengaturan</button>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL PENGAJUAN -->
     <div id="submission-modal" class="modal-overlay">
         <div class="modal-content">
@@ -814,6 +846,19 @@
                     localStorage.clear();
                     Swal.fire('Ditolak', 'Akun diblokir.', 'error').then(() => location.reload());
                     return;
+                }
+
+                // TAMPILKAN POPUP INFORMASI JIKA DI-SETTING 'ON' OLEH ADMIN
+                if (json.popup && json.popup.status === 'ON') {
+                    // Pakai timer sedikit agar animasi login hilang mulus
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: 'Informasi Sistem',
+                            text: json.popup.message,
+                            icon: 'info',
+                            confirmButtonColor: '#005A9C'
+                        });
+                    }, 500);
                 }
                 
                 document.getElementById('login-page').classList.add('hidden');
@@ -1128,41 +1173,51 @@
 
             const lastTab = localStorage.getItem('lastAdminTab') || 'submissions';
             switchTab(lastTab);
-            loadFormStatus();
         }
 
-        async function loadFormStatus() {
+        async function openSettingsModal() {
+            Swal.fire({ title: 'Memuat Pengaturan...', didOpen: () => Swal.showLoading() });
             try {
                 const res = await fetch(`${WEB_APP_URL}?action=getSettings`);
                 const json = await res.json();
-                if(json.status === 'success') {
-                    currentFormStatus = json.data.formStatus;
-                    updateStatusButton();
-                }
-            } catch(e) {}
-        }
-
-        function updateStatusButton() {
-            const btn = document.getElementById('btn-toggle-status');
-            if(currentFormStatus === 'ON') { btn.className = 'btn-small btn-status-on'; btn.innerHTML = '<i class="fas fa-toggle-on"></i> Formulir: BUKA'; } 
-            else { btn.className = 'btn-small btn-status-off'; btn.innerHTML = '<i class="fas fa-toggle-off"></i> Formulir: TUTUP'; }
-        }
-
-        async function toggleFormStatus() {
-            const newStatus = currentFormStatus === 'ON' ? 'OFF' : 'ON';
-            const action = newStatus === 'ON' ? 'Membuka' : 'Menutup';
-            const confirm = await Swal.fire({ title: `Formulir ${newStatus === 'ON' ? 'Dibuka' : 'Ditutup'}?`, text: `Anda akan ${action.toLowerCase()} akses formulir.`, icon: 'question', showCancelButton: true });
-            if(confirm.isConfirmed) {
-                Swal.showLoading();
-                const res = await fetch(`${WEB_APP_URL}?action=updateSettings&formStatus=${newStatus}`);
-                const json = await res.json();
                 Swal.close();
                 if(json.status === 'success') {
-                    currentFormStatus = newStatus; updateStatusButton();
-                    Swal.fire('Berhasil', `Formulir sekarang ${newStatus === 'ON' ? 'DIBUKA' : 'DITUTUP'}`, 'success');
-                } else { Swal.fire('Gagal', 'Update status gagal', 'error'); }
+                    document.getElementById('set-form-status').value = json.data.formStatus;
+                    document.getElementById('set-popup-status').value = json.data.popupStatus;
+                    document.getElementById('set-popup-message').value = json.data.popupMessage;
+                    document.getElementById('settings-modal').style.display = 'flex';
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Gagal memuat pengaturan', 'error');
             }
         }
+
+        document.getElementById('settingsForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
+            
+            const payload = {
+                formStatus: document.getElementById('set-form-status').value,
+                popupStatus: document.getElementById('set-popup-status').value,
+                popupMessage: document.getElementById('set-popup-message').value
+            };
+            
+            try {
+                const res = await fetch(`${WEB_APP_URL}?action=saveSettings`, { 
+                    method: 'POST', 
+                    body: JSON.stringify(payload) 
+                });
+                const json = await res.json();
+                if(json.status === 'success') {
+                    Swal.fire('Berhasil', 'Pengaturan sistem berhasil disimpan', 'success');
+                    document.getElementById('settings-modal').style.display = 'none';
+                } else {
+                    throw new Error(json.message);
+                }
+            } catch(err) {
+                Swal.fire('Gagal', err.message, 'error');
+            }
+        });
 
         function switchTab(t) {
             document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));

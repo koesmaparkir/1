@@ -413,7 +413,10 @@
                     <button id="btn-toggle-status" class="btn-small btn-status-on" onclick="toggleFormStatus()">
                         <i class="fas fa-toggle-on"></i> Formulir: Loading...
                     </button>
-                    
+                    <!-- TAMBAHAN: Tombol Edit Profil untuk Admin -->
+                    <button class="btn-small btn-edit-profile" onclick="openProfileModal(true)">
+                        <i class="fas fa-user-edit"></i> Edit Profil
+                    </button>
                     <button class="btn-small btn-edit-profile" onclick="openAdminOfflineInput()">
                         <i class="fas fa-keyboard"></i> Input Offline
                     </button>
@@ -784,9 +787,6 @@
                 const json = await res.json();
                 Swal.close();
                 
-                // ==========================================
-                // TAMBAHAN: PENANGANAN STATUS MAINTENANCE (FORM CLOSED)
-                // ==========================================
                 if (json.status === 'maintenance') {
                     localStorage.clear(); // Hapus session lokal
                     
@@ -800,13 +800,11 @@
                                </div>`,
                         confirmButtonText: 'Tutup',
                         confirmButtonColor: '#005A9C',
-                        backdrop: `rgba(15, 23, 42, 0.8)` // Background gelap profesional
+                        backdrop: `rgba(15, 23, 42, 0.8)` 
                     }).then(() => {
-                        // Tampilkan kembali halaman login
                         const loginPage = document.getElementById('login-page');
                         loginPage.classList.remove('hidden');
                         loginPage.style.opacity = '1';
-                        // Jalankan kembali animasi jika sempat dihentikan
                         if(!window.meshAnimationId) animate();
                     });
                     return;
@@ -844,8 +842,8 @@
             document.getElementById('user-dashboard').classList.remove('hidden');
             document.getElementById('admin-dashboard').classList.add('hidden');
             document.getElementById('app-container').classList.remove('admin-mode');
-            const dispName = userProfile ? userProfile.nama : name;
-            const dispUnit = userProfile ? userProfile.unit : 'Lengkapi Profil Anda';
+            const dispName = userProfile && userProfile.nama ? userProfile.nama : name;
+            const dispUnit = userProfile && userProfile.unit ? userProfile.unit : 'Lengkapi Profil Anda';
             document.getElementById('display-name').textContent = dispName;
             document.getElementById('display-unit').textContent = dispUnit;
             document.getElementById('avatar-initials').textContent = dispName.charAt(0).toUpperCase();
@@ -1124,7 +1122,6 @@
             badge.textContent = currentUserRole;
             badge.className = `role-badge ${currentUserRole === 'SUPERADMIN' ? 'role-super' : 'role-admin'}`;
             
-            // Show/Hide Add User Button based on role (Superadmin only or both? Request said Superadmin, assuming both admins can manage but superadmin has priority)
             if(currentUserRole === 'SUPERADMIN') {
                  document.getElementById('btn-add-user-admin').classList.remove('hidden');
             }
@@ -1321,25 +1318,22 @@
                 const res = await fetch(`${WEB_APP_URL}?action=getUsersList`);
                 const json = await res.json();
                 tbody.innerHTML = '';
-                allUsersData = json.data; // Simpan untuk edit
+                allUsersData = json.data; 
 
                 json.data.forEach((u, index) => {
-                    // Data Structure from GS: 
-                    // [Email, Nama, Role, Status, TS, StatusPeg, Unit, HP, KTP, TglSelesai]
                     const email = u[0]; 
                     const name = u[1]; 
                     const role = u[2]; 
                     const status = u[3];
                     const hp = u[7] || '';
                     
-                    // NEW: MASA TUGAS Logic (Index 9)
                     let tglDisplay = '-';
                     if (u[9]) {
                         const d = new Date(u[9]);
                         if(!isNaN(d.getTime())) {
                              tglDisplay = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
                         } else {
-                             tglDisplay = u[9]; // Tampilkan apa adanya jika bukan format tanggal standard
+                             tglDisplay = u[9]; 
                         }
                     }
 
@@ -1351,7 +1345,6 @@
                     let actions = '';
                     
                     if (currentUserRole === 'SUPERADMIN') {
-                        // Tombol Edit
                         actions += `<button class="btn-action btn-edit" onclick="openEditUser('${email}')"><i class="fas fa-edit"></i></button>`;
 
                         if (!isSuper) {
@@ -1381,14 +1374,11 @@
         }
 
         function openEditUser(targetEmail) {
-            // Cari data user dari allUsersData
             const user = allUsersData.find(u => u[0] === targetEmail);
             if (!user) return Swal.fire('Error', 'Data user tidak ditemukan', 'error');
 
-            // Set global variable agar modal tahu kita sedang edit orang lain
             offlineTargetEmail = targetEmail; 
             
-            // Format data agar sesuai struktur userProfile object
             offlineUserProfile = {
                 nama: user[1],
                 role: user[2],
@@ -1399,7 +1389,6 @@
                 tglSelesai: user[9]
             };
 
-            // Buka Modal
             openProfileModal(true);
         }
 
@@ -1423,7 +1412,6 @@
                     
                     if(json.status === 'success') {
                         Swal.fire('Berhasil', 'User ditambahkan. Silakan lengkapi profilnya.', 'success').then(() => {
-                            // Refresh table dan langsung buka edit modal
                             fetchUsers().then(() => openEditUser(email));
                         });
                     } else {
@@ -1467,12 +1455,10 @@
         let width, height;
         let dots = [];
         const spacing = 50; 
-        const mouseRadius = 200; // Radius interaksi mouse lebih besar
+        const mouseRadius = 200; 
         
-        // Scan line radar
         let scanAngle = 0;
         
-        // Mouse Interaction
         let mouse = { x: -999, y: -999 };
         window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
 
@@ -1487,37 +1473,31 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.baseAlpha = 0.2; // Lebih terang defaultnya
+                this.baseAlpha = 0.2; 
                 this.alpha = this.baseAlpha;
                 this.active = false;
                 this.timer = Math.random() * 200;
             }
 
             update() {
-                // Logic Scan Mouse (Lebih responsif)
                 const dx = mouse.x - this.x;
                 const dy = mouse.y - this.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 
-                // Logic Radar Scanner
-                // Bayangkan garis berputar dari tengah layar
                 const cx = width / 2;
                 const cy = height / 2;
                 const angleToDot = Math.atan2(this.y - cy, this.x - cx);
-                // Normalisasi angle
                 let diffAngle = Math.abs(angleToDot - scanAngle);
                 if (diffAngle > Math.PI) diffAngle = (2 * Math.PI) - diffAngle;
                 
-                // Jika kena scan radar
                 if (diffAngle < 0.1) {
-                    this.alpha = 1; // Flash terang
+                    this.alpha = 1; 
                 }
 
                 if (dist < mouseRadius) {
                     this.alpha = 1 - (dist / mouseRadius);
                     if(this.alpha < 0.2) this.alpha = 0.2;
                 } else {
-                    // Random Pulse
                     this.timer++;
                     if(this.timer > 300) { 
                         this.active = true; 
@@ -1528,7 +1508,6 @@
                         this.alpha += 0.05;
                         if(this.alpha >= 1) { this.active = false; }
                     } else {
-                        // Fade out perlahan setelah kena radar atau pulse
                         if(this.alpha > this.baseAlpha) this.alpha -= 0.01;
                     }
                 }
@@ -1536,12 +1515,10 @@
 
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); // Titik sedikit lebih besar
+                ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); 
                 
-                // Warna Neon Cyan/Emerald
                 ctx.fillStyle = `rgba(0, 255, 200, ${this.alpha})`; 
                 
-                // Efek Glow Neon (hanya jika cukup terang agar performa aman)
                 if(this.alpha > 0.4) {
                     ctx.shadowBlur = 10;
                     ctx.shadowColor = `rgba(0, 255, 200, ${this.alpha})`;
@@ -1550,7 +1527,7 @@
                 }
                 
                 ctx.fill();
-                ctx.shadowBlur = 0; // Reset
+                ctx.shadowBlur = 0; 
             }
         }
 
@@ -1563,46 +1540,36 @@
             }
         }
 
-        // Terekspos ke window agar bisa dipanggil ulang dari modal maintenance
         window.animate = function() {
             const loginPage = document.getElementById('login-page');
-            // Cek jika login page ada dan tidak hidden. Jika hidden (user login), stop animasi.
             if(loginPage && loginPage.classList.contains('hidden')) {
-                // Optional: cancelAnimationFrame di sini jika mau
                 return;
             }
 
             ctx.clearRect(0, 0, width, height);
             
-            // Putar Radar
             scanAngle += 0.02;
             if(scanAngle > Math.PI) scanAngle = -Math.PI;
 
-            // Update & Draw Dots
             dots.forEach(dot => {
                 dot.update();
                 dot.draw();
             });
 
-            // Draw Connection Lines (Grid Logic)
-            ctx.lineWidth = 1; // Garis lebih tebal dikit
+            ctx.lineWidth = 1; 
             for(let i=0; i<dots.length; i++) {
                 let d1 = dots[i];
-                // Hanya gambar garis jika titik ini sedang aktif/terang
                 if(d1.alpha < 0.3) continue;
 
                 for(let j=i+1; j<dots.length; j++) {
                     let d2 = dots[j];
                     
-                    // Cek jarak kasar dulu
                     if (Math.abs(d1.x - d2.x) > spacing * 1.5 || Math.abs(d1.y - d2.y) > spacing * 1.5) continue;
 
                     let distSq = (d1.x-d2.x)*(d1.x-d2.x) + (d1.y-d2.y)*(d1.y-d2.y);
                     
-                    // Hubungkan jika jarak <= diagonal grid
                     if(distSq <= (spacing*spacing * 2.2)) {
                         ctx.beginPath();
-                        // Opacity garis tergantung seberapa terang kedua titik
                         let lineAlpha = Math.min(d1.alpha, d2.alpha) * 0.6;
                         if(lineAlpha > 0.05) {
                             ctx.strokeStyle = `rgba(0, 255, 200, ${lineAlpha})`;
